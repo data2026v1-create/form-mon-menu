@@ -27,7 +27,10 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
       margin-bottom: 20px;
     }
-    header h1 { font-size: 20px; color: #1a202c; }
+    header h1 {
+      font-size: 20px;
+      color: #1a202c;
+    }
     .btn-add {
       background-color: #22c55e;
       color: white;
@@ -41,7 +44,7 @@
     }
     .btn-add:hover { background-color: #16a34a; }
 
-    /* Modal Overlay */
+    /* Modal / Form Overlay */
     .modal {
       display: none;
       position: fixed;
@@ -68,7 +71,9 @@
       margin-bottom: 16px;
     }
     .modal-header h2 { font-size: 18px; color: #1a202c; }
-    .close-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: #a0aec0; }
+    .close-btn {
+      background: none; border: none; font-size: 22px; cursor: pointer; color: #a0aec0;
+    }
 
     .form-group { margin-bottom: 14px; }
     label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #4a5568; }
@@ -94,7 +99,9 @@
       overflow: hidden;
       border: 1px dashed #cbd5e0;
     }
-    .image-preview img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .image-preview img {
+      width: 100%; height: 100%; object-fit: cover; display: none;
+    }
     .image-preview span { font-size: 12px; color: #a0aec0; }
 
     .btn-submit {
@@ -112,7 +119,11 @@
     .btn-submit:disabled { background-color: #cbd5e0; cursor: not-allowed; }
 
     /* Synced List Cards */
-    .menu-list { display: flex; flex-direction: column; gap: 12px; }
+    .menu-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
     .item-card {
       background: #ffffff;
       border-radius: 12px;
@@ -123,9 +134,14 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.04);
       gap: 12px;
     }
-    .item-left { display: flex; align-items: center; gap: 12px; }
+    .item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
     .item-img {
-      width: 55px; height: 55px;
+      width: 55px;
+      height: 55px;
       border-radius: 8px;
       object-fit: cover;
       background-color: #edf2f7;
@@ -144,9 +160,18 @@
     .badge-dispo { background: #dcfce7; color: #15803d; }
     .badge-indispo { background: #fee2e2; color: #b91c1c; }
 
-    .item-actions { display: flex; gap: 8px; }
-    .btn-edit { background: #3182ce; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
-    .btn-delete { background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .item-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-edit {
+      background: #3182ce; color: white; border: none; padding: 8px 12px;
+      border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .btn-delete {
+      background: #ef4444; color: white; border: none; padding: 8px 12px;
+      border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
 
     #loading { text-align: center; padding: 40px; color: #718096; }
     .spinner {
@@ -166,7 +191,7 @@
 
   <div id="loading">
     <div class="spinner"></div>
-    Chargement et synchronisation avec Google Sheets...
+    <span id="loadingText">Chargement et synchronisation avec Google Sheets...</span>
   </div>
 
   <div class="menu-list" id="menuList"></div>
@@ -215,18 +240,21 @@
   </div>
 
   <script>
-    // ⚠️ REMPLACEZ CETTE URL PAR VOTRE URL GOOGLE APPS SCRIPT DÉPLOYÉE EN APPLICATION WEB
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwAlptJvQnGWm03KbN7fPJuIz6dR2V1or04Y-_Fi0ItViVyJ4myNHVmZwkXne9O_784BA/exec";
+    // ⚠️ REMPLACEZ PAR VOTRE URL GOOGLE APPS SCRIPT DÉPLOYÉE (Terminant par /exec)
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyBIlRA02B38Tn9TEvZyuC4cD0TI6saGL1tcf66TYnALIzDBbjNKhnRhR5dT3GUA65nmw/exec";
 
     let menuData = [];
 
-    // Charger les données au démarrage
     function loadMenu() {
       document.getElementById('loading').style.display = 'block';
+      document.getElementById('loadingText').innerText = 'Chargement et synchronisation avec Google Sheets...';
       document.getElementById('menuList').innerHTML = '';
 
-      fetch(SCRIPT_URL + "?action=read")
-        .then(res => res.json())
+      fetch(SCRIPT_URL)
+        .then(res => {
+          if (!res.ok) throw new Error("Erreur serveur : " + res.status);
+          return res.json();
+        })
         .then(data => {
           menuData = data;
           renderList();
@@ -234,7 +262,7 @@
         })
         .catch(err => {
           console.error(err);
-          document.getElementById('loading').innerHTML = "❌ Erreur de chargement. Vérifiez l'URL et les autorisations de votre Apps Script.";
+          document.getElementById('loadingText').innerHTML = '❌ Impossible de charger les données.<br><small>Vérifiez que SCRIPT_URL est correct et que le script est déployé publiquement.</small>';
         });
     }
 
@@ -242,7 +270,7 @@
       const container = document.getElementById('menuList');
       container.innerHTML = '';
 
-      if (menuData.length === 0) {
+      if (!menuData || menuData.length === 0) {
         container.innerHTML = '<div style="text-align:center; color:#a0aec0; padding:20px;">Aucun plat dans le menu.</div>';
         return;
       }
@@ -250,16 +278,17 @@
       menuData.forEach(item => {
         const isDispo = (item.disponible || '').toUpperCase().includes('DISPO') && !(item.disponible || '').toUpperCase().includes('NON');
         const badgeClass = isDispo ? 'badge-dispo' : 'badge-indispo';
-        const imgUrl = item.image && item.image.startsWith('http') ? item.image : 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&q=80';
+        const defaultImg = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&q=80';
+        const imgUrl = (item.image && item.image.trim().startsWith('http')) ? item.image.trim() : defaultImg;
 
         const card = document.createElement('div');
         card.className = 'item-card';
         card.innerHTML = `
           <div class="item-left">
-            <img src="${imgUrl}" class="item-img" onerror="this.src='https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&q=80'">
+            <img src="${imgUrl}" class="item-img" onerror="this.onerror=null; this.src='${defaultImg}';">
             <div class="item-info">
-              <h3>${item.description}</h3>
-              <p>${item.prix} DZ</p>
+              <h3>${escapeHtml(item.description)}</h3>
+              <p>${escapeHtml(String(item.prix))} DZ</p>
               <span class="badge ${badgeClass}">${isDispo ? 'Disponible' : 'Non disponible'}</span>
             </div>
           </div>
@@ -286,8 +315,8 @@
         const item = menuData.find(i => i.rowIndex === rowIndex);
         if (item) {
           document.getElementById('rowIndex').value = item.rowIndex;
-          document.getElementById('description').value = item.description;
-          document.getElementById('prix').value = item.prix;
+          document.getElementById('description').value = item.description || '';
+          document.getElementById('prix').value = item.prix || '';
           document.getElementById('image').value = item.image || '';
           document.getElementById('disponible').value = item.disponible || 'DISPONIBLE';
           previewImage(item.image);
@@ -302,8 +331,8 @@
     function previewImage(url) {
       const img = document.getElementById('previewImg');
       const placeholder = document.getElementById('previewPlaceholder');
-      if (url && url.startsWith('http')) {
-        img.src = url;
+      if (url && url.trim().startsWith('http')) {
+        img.src = url.trim();
         img.style.display = 'block';
         placeholder.style.display = 'none';
       } else {
@@ -320,18 +349,19 @@
       if (!confirm("Voulez-vous vraiment supprimer ce plat de Google Sheets ?")) return;
 
       document.getElementById('loading').style.display = 'block';
-      
-      fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'delete', rowIndex: rowIndex })
-      })
-      .then(res => res.json())
-      .then(() => loadMenu())
-      .catch(err => {
-        console.error(err);
-        loadMenu();
-      });
+      document.getElementById('loadingText').innerText = 'Suppression en cours...';
+
+      const payload = { action: 'delete', rowIndex: rowIndex };
+
+      sendData(payload)
+        .then(res => res.json())
+        .then(res => {
+          loadMenu();
+        })
+        .catch(err => {
+          alert("Erreur lors de la suppression.");
+          loadMenu();
+        });
     }
 
     document.getElementById('crudForm').addEventListener('submit', function(e) {
@@ -350,28 +380,35 @@
         disponible: document.getElementById('disponible').value
       };
 
-      fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(() => {
-        closeModal();
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Enregistrer dans Google Sheets';
-        loadMenu();
-      })
-      .catch(err => {
-        console.error(err);
-        closeModal();
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Enregistrer dans Google Sheets';
-        loadMenu();
-      });
+      sendData(payload)
+        .then(res => res.json())
+        .then(res => {
+          closeModal();
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Enregistrer dans Google Sheets';
+          loadMenu();
+        })
+        .catch(err => {
+          alert("Erreur lors de l'enregistrement.");
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Enregistrer dans Google Sheets';
+        });
     });
 
-    // Lancer le chargement initial
+    // Fonction d'envoi compatible CORS avec Apps Script
+    function sendData(data) {
+      return fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(data)
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // Chargement initial
     loadMenu();
   </script>
 </body>
