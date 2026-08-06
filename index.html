@@ -3,22 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Formulaire d'Upload vers Google Sheets</title>
+  <title>Gestion de la Galerie / Menu</title>
   <style>
     * { box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
-      max-width: 500px;
+      max-width: 600px;
       margin: 20px auto;
       padding: 20px;
       background-color: #f9f9f9;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    h2 { text-align: center; color: #333; }
+    h2, h3 { text-align: center; color: #333; }
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input[type="text"], input[type="number"], input[type="file"] {
+    input[type="text"], input[type="number"], input[type="file"], select {
       width: 100%;
       padding: 10px;
       border: 1px solid #ccc;
@@ -34,24 +33,49 @@
       font-weight: bold;
       cursor: pointer;
       border-radius: 4px;
+      margin-top: 5px;
     }
-    button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+    button.btn-cancel { background-color: #6c757d; }
+    button.btn-delete { background-color: #dc3545; padding: 6px 12px; width: auto; font-size: 14px; }
+    button.btn-edit { background-color: #ffc107; color: #000; padding: 6px 12px; width: auto; font-size: 14px; }
     #preview {
       max-width: 100%;
       max-height: 200px;
       margin-top: 10px;
       display: none;
       border-radius: 4px;
-      border: 1px solid #ddd;
     }
     #status { margin-top: 15px; text-align: center; font-weight: bold; }
+    .item-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .item-info { flex-grow: 1; }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: white;
+    }
+    .badge-dispo { background-color: #28a745; }
+    .badge-nodispo { background-color: #dc3545; }
+    .actions { display: flex; gap: 5px; }
   </style>
 </head>
 <body>
 
-  <h2>Ajouter à la liste</h2>
+  <h2 id="formTitle">Ajouter un produit</h2>
   
   <form id="uploadForm">
+    <input type="hidden" id="rowIndex" value="">
+    
     <div class="form-group">
       <label for="nom">Nom / Article :</label>
       <input type="text" id="nom" required>
@@ -63,26 +87,40 @@
     </div>
 
     <div class="form-group">
+      <label for="statut">Disponibilité :</label>
+      <select id="statut" required>
+        <option value="Disponible">Disponible</option>
+        <option value="Non disponible">Non disponible</option>
+      </select>
+    </div>
+
+    <div class="form-group">
       <label for="photo">Photo (Galerie ou Appareil photo) :</label>
-      <!-- accept="image/*" permet de choisir soit l'appareil photo soit la galerie -->
-      <input type="file" id="photo" accept="image/*" capture="environment" required>
+      <input type="file" id="photo" accept="image/*" capture="environment">
       <img id="preview" alt="Aperçu image">
     </div>
 
-    <button type="submit" id="btnSubmit">Envoyer</button>
+    <button type="submit" id="btnSubmit">Enregistrer</button>
+    <button type="button" id="btnCancel" class="btn-cancel" style="display:none;">Annuler la modification</button>
   </form>
 
   <div id="status"></div>
 
+  <hr style="margin: 30px 0;">
+
+  <h3>Liste des produits synchronisés</h3>
+  <div id="itemsList">Chargement des données...</div>
+
   <script>
-    // COLLEZ VOTRE URL DE DÉPLOIEMENT APPS SCRIPT ICI :
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxtiZ1JLi0mYk7XzwKJT8VbGbSmK2zyKFWMERj-LctTAJXVnTkAt7buUfQiugfEECe-6g/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwTwT19wpS4p_l9D5-bjpQ2u2XaAr6-euT0guQWkKvZ5j-RNMonujUZQD3E62rqc6cVTA/exec";
 
     const photoInput = document.getElementById('photo');
     const preview = document.getElementById('preview');
     const form = document.getElementById('uploadForm');
     const statusDiv = document.getElementById('status');
     const btnSubmit = document.getElementById('btnSubmit');
+    const btnCancel = document.getElementById('btnCancel');
+    const itemsList = document.getElementById('itemsList');
 
     let base64Image = "";
 
@@ -92,11 +130,10 @@
       if (file) {
         const reader = new FileReader();
         reader.onload = function(event) {
-          // Utilisation d'un Canvas pour redimensionner l'image si elle est trop grande (optimisation performance)
           const img = new Image();
           img.onload = function() {
             const canvas = document.createElement('canvas');
-            const maxDimension = 1000; // Ajustement automatique de la résolution max
+            const maxDimension = 1000;
             let width = img.width;
             let height = img.height;
 
@@ -123,53 +160,134 @@
       }
     });
 
-    // Envoi des données vers Google Sheets
+    // Charger la liste depuis Google Sheets
+    function loadItems() {
+      fetch(SCRIPT_URL)
+        .then(response => response.json())
+        .then(data => {
+          itemsList.innerHTML = "";
+          if (data.length === 0) {
+            itemsList.innerHTML = "<p style='text-align:center;'>Aucun produit trouvé.</p>";
+            return;
+          }
+
+          data.forEach(item => {
+            const isDispo = item.statut === "Disponible";
+            const badgeClass = isDispo ? "badge-dispo" : "badge-nodispo";
+
+            const div = document.createElement('div');
+            div.className = 'item-card';
+            div.innerHTML = `
+              <div class="item-info">
+                <strong>${item.nom}</strong> - ${item.prix ? item.prix + " DA" : ""}<br>
+                <span class="badge ${badgeClass}">${item.statut}</span>
+              </div>
+              <div class="actions">
+                <button class="btn-edit" onclick="editItem(${item.rowIndex}, '${item.nom.replace(/'/g, "\\'")}', '${item.prix}', '${item.statut}')">Modifier</button>
+                <button class="btn-delete" onclick="deleteItem(${item.rowIndex})">Supprimer</button>
+              </div>
+            `;
+            itemsList.appendChild(div);
+          });
+        })
+        .catch(err => {
+          itemsList.innerHTML = "<p style='color:red; text-align:center;'>Erreur de chargement de la liste.</p>";
+        });
+    }
+
+    // Préparer la modification
+    window.editItem = function(rowIndex, nom, prix, statut) {
+      document.getElementById('rowIndex').value = rowIndex;
+      document.getElementById('nom').value = nom;
+      document.getElementById('prix').value = prix;
+      document.getElementById('statut').value = statut;
+
+      document.getElementById('formTitle').innerText = "Modifier le produit";
+      btnSubmit.innerText = "Mettre à jour";
+      btnCancel.style.display = "block";
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Annuler la modification
+    btnCancel.addEventListener('click', resetForm);
+
+    function resetForm() {
+      form.reset();
+      document.getElementById('rowIndex').value = "";
+      document.getElementById('formTitle').innerText = "Ajouter un produit";
+      btnSubmit.innerText = "Enregistrer";
+      btnCancel.style.display = "none";
+      preview.style.display = "none";
+      base64Image = "";
+    }
+
+    // Supprimer un élément
+    window.deleteItem = function(rowIndex) {
+      if (!confirm("Voulez-vous vraiment supprimer cet élément ?")) return;
+
+      const formData = new URLSearchParams();
+      formData.append('action', 'delete');
+      formData.append('rowIndex', rowIndex);
+
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: formData.toString()
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.result === "success") {
+          loadItems();
+        }
+      });
+    };
+
+    // Soumission du formulaire (Ajout ou Modification)
     form.addEventListener('submit', function(e) {
       e.preventDefault();
 
-      if (!base64Image) {
-        alert("Veuillez sélectionner ou prendre une photo.");
-        return;
-      }
+      const rowIndex = document.getElementById('rowIndex').value;
+      const action = rowIndex ? "update" : "add";
 
       btnSubmit.disabled = true;
       statusDiv.style.color = "#007bff";
-      statusDiv.innerText = "Envoi en cours... Veuillez patienter.";
+      statusDiv.innerText = "Envoi en cours...";
 
-      // Utilisation du format URL-encoded pour une compatibilité parfaite avec Apps Script
       const formData = new URLSearchParams();
+      formData.append('action', action);
+      if (rowIndex) formData.append('rowIndex', rowIndex);
       formData.append('nom', document.getElementById('nom').value);
       formData.append('prix', document.getElementById('prix').value);
+      formData.append('statut', document.getElementById('statut').value);
       formData.append('image', base64Image);
 
       fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
         body: formData.toString()
       })
       .then(response => response.json())
       .then(data => {
         if (data.result === "success") {
           statusDiv.style.color = "green";
-          statusDiv.innerText = "✔ Enregistré avec succès dans Google Sheets !";
-          form.reset();
-          preview.style.display = 'none';
-          base64Image = "";
+          statusDiv.innerText = "✔ Enregistré avec succès !";
+          resetForm();
+          loadItems();
         } else {
           throw new Error(data.error || "Erreur inconnue");
         }
       })
       .catch(error => {
-        console.error('Erreur:', error);
         statusDiv.style.color = "red";
-        statusDiv.innerText = "✖ Erreur lors de l'enregistrement : " + error.message;
+        statusDiv.innerText = "✖ Erreur : " + error.message;
       })
       .finally(() => {
         btnSubmit.disabled = false;
       });
     });
+
+    // Chargement initial au démarrage de la page
+    loadItems();
   </script>
 
 </body>
