@@ -27,10 +27,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
       margin-bottom: 20px;
     }
-    header h1 {
-      font-size: 20px;
-      color: #1a202c;
-    }
+    header h1 { font-size: 20px; color: #1a202c; }
     .btn-add {
       background-color: #22c55e;
       color: white;
@@ -44,7 +41,7 @@
     }
     .btn-add:hover { background-color: #16a34a; }
 
-    /* Modal / Form Overlay */
+    /* Modal Overlay */
     .modal {
       display: none;
       position: fixed;
@@ -71,9 +68,7 @@
       margin-bottom: 16px;
     }
     .modal-header h2 { font-size: 18px; color: #1a202c; }
-    .close-btn {
-      background: none; border: none; font-size: 22px; cursor: pointer; color: #a0aec0;
-    }
+    .close-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: #a0aec0; }
 
     .form-group { margin-bottom: 14px; }
     label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #4a5568; }
@@ -99,9 +94,7 @@
       overflow: hidden;
       border: 1px dashed #cbd5e0;
     }
-    .image-preview img {
-      width: 100%; height: 100%; object-fit: cover; display: none;
-    }
+    .image-preview img { width: 100%; height: 100%; object-fit: cover; display: none; }
     .image-preview span { font-size: 12px; color: #a0aec0; }
 
     .btn-submit {
@@ -119,11 +112,7 @@
     .btn-submit:disabled { background-color: #cbd5e0; cursor: not-allowed; }
 
     /* Synced List Cards */
-    .menu-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
+    .menu-list { display: flex; flex-direction: column; gap: 12px; }
     .item-card {
       background: #ffffff;
       border-radius: 12px;
@@ -134,14 +123,9 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.04);
       gap: 12px;
     }
-    .item-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .item-left { display: flex; align-items: center; gap: 12px; }
     .item-img {
-      width: 55px;
-      height: 55px;
+      width: 55px; height: 55px;
       border-radius: 8px;
       object-fit: cover;
       background-color: #edf2f7;
@@ -160,18 +144,9 @@
     .badge-dispo { background: #dcfce7; color: #15803d; }
     .badge-indispo { background: #fee2e2; color: #b91c1c; }
 
-    .item-actions {
-      display: flex;
-      gap: 8px;
-    }
-    .btn-edit {
-      background: #3182ce; color: white; border: none; padding: 8px 12px;
-      border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
-    }
-    .btn-delete {
-      background: #ef4444; color: white; border: none; padding: 8px 12px;
-      border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
-    }
+    .item-actions { display: flex; gap: 8px; }
+    .btn-edit { background: #3182ce; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-delete { background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
     #loading { text-align: center; padding: 40px; color: #718096; }
     .spinner {
@@ -209,7 +184,7 @@
         
         <div class="form-group">
           <label for="description">Nom / Description du plat</label>
-          <input type="text" id="description" placeholder="Ex: Hamburgeur Spécial" required>
+          <input type="text" id="description" placeholder="Ex: Hamburger Spécial" required>
         </div>
 
         <div class="form-group">
@@ -240,8 +215,8 @@
   </div>
 
   <script>
-    // ⚠️ REMPLACEZ CETTE URL PAR VOTRE URL GOOGLE APPS SCRIPT DÉPLOYÉE
-    const SCRIPT_URL = "VOTRE_URL_GOOGLE_APPS_SCRIPT_ICI";
+    // ⚠️ REMPLACEZ CETTE URL PAR VOTRE URL GOOGLE APPS SCRIPT DÉPLOYÉE EN APPLICATION WEB
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhG6giEnC6DMHCuNlqwmdr9W0pCLozp2-hQ2_Nb2pL-W5cwPijrrHSsYPyDoPt05cB/exec";
 
     let menuData = [];
 
@@ -250,7 +225,7 @@
       document.getElementById('loading').style.display = 'block';
       document.getElementById('menuList').innerHTML = '';
 
-      fetch(SCRIPT_URL)
+      fetch(SCRIPT_URL + "?action=read")
         .then(res => res.json())
         .then(data => {
           menuData = data;
@@ -258,7 +233,8 @@
           document.getElementById('loading').style.display = 'none';
         })
         .catch(err => {
-          document.getElementById('loading').innerHTML = '❌ Erreur de chargement. Vérifiez l'URL du Script.';
+          console.error(err);
+          document.getElementById('loading').innerHTML = "❌ Erreur de chargement. Vérifiez l'URL et les autorisations de votre Apps Script.";
         });
     }
 
@@ -347,12 +323,14 @@
       
       fetch(SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'delete', rowIndex: rowIndex })
       })
-      .then(() => {
-        setTimeout(loadMenu, 1500); // Attendre la synchro Google Sheets
+      .then(res => res.json())
+      .then(() => loadMenu())
+      .catch(err => {
+        console.error(err);
+        loadMenu();
       });
     }
 
@@ -374,15 +352,22 @@
 
       fetch(SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       })
+      .then(res => res.json())
       .then(() => {
         closeModal();
         submitBtn.disabled = false;
         submitBtn.textContent = 'Enregistrer dans Google Sheets';
-        setTimeout(loadMenu, 1500);
+        loadMenu();
+      })
+      .catch(err => {
+        console.error(err);
+        closeModal();
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enregistrer dans Google Sheets';
+        loadMenu();
       });
     });
 
