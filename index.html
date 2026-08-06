@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ajouter un Plat - Menu Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 15px;
+      display: flex;
+      justify-content: center;
+    }
+    .form-card {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 450px;
+    }
+    h2 {
+      margin-top: 0;
+      color: #1a73e8;
+      font-size: 20px;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #a0c3ff;
+    }
+    #status {
+      margin-top: 15px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .success { color: #2e7d32; }
+    .error { color: #c62828; }
+  </style>
+</head>
+<body>
+
+  <div class="form-card">
+    <h2>➕ Ajouter au Menu</h2>
+    
+    <form id="menuForm">
+      <div class="form-group">
+        <label for="description">Nom / Description du plat</label>
+        <input type="text" id="description" placeholder="Ex: Hamburgeur" required>
+      </div>
+
+      <div class="form-group">
+        <label for="prix">Prix (DZ)</label>
+        <input type="number" id="prix" placeholder="Ex: 450" required>
+      </div>
+
+      <div class="form-group">
+        <label for="image">Lien URL de l'image</label>
+        <input type="url" id="image" placeholder="https://exemple.com/image.jpg">
+      </div>
+
+      <div class="form-group">
+        <label for="disponible">Disponibilité</label>
+        <select id="disponible">
+          <option value="DISPONIBLE">DISPONIBLE</option>
+          <option value="NON DISPONIBLE">NON DISPONIBLE</option>
+        </select>
+      </div>
+
+      <button type="submit" id="submitBtn">Enregistrer dans le Menu</button>
+    </form>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    // ⚠️ REMPLACEZ CETTE URL PAR VOTRE URL OBTENUE À L'ÉTAPE 2
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbykcHBY4dCEYGYa1jNrVQ0s3dcTOpkEr0FzSB68l97pl0Gg-VrY6m1wNsKDRPDcRTX-sQ/exec";
+
+    const form = document.getElementById('menuForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const status = document.getElementById('status');
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      submitBtn.disabled = true;
+      status.className = '';
+      status.textContent = 'Enregistrement en cours...';
+
+      const payload = {
+        action: "add",
+        description: document.getElementById('description').value,
+        prix: document.getElementById('prix').value,
+        image: document.getElementById('image').value,
+        disponible: document.getElementById('disponible').value
+      };
+
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(() => {
+        status.className = 'success';
+        status.textContent = '✅ Produit ajouté avec succès dans Google Sheets !';
+        form.reset();
+        submitBtn.disabled = false;
+      })
+      .catch(err => {
+        status.className = 'error';
+        status.textContent = '❌ Erreur d\'envoi. Réessayez.';
+        submitBtn.disabled = false;
+      });
+    });
+  </script>
+
+</body>
+</html>
