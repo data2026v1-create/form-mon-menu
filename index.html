@@ -3,83 +3,80 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Formulaire d'envoi d'image</title>
+  <title>Formulaire d'Upload vers Google Sheets</title>
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
       max-width: 500px;
       margin: 20px auto;
-      padding: 15px;
+      padding: 20px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
+    h2 { text-align: center; color: #333; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
     input[type="text"], input[type="number"], input[type="file"] {
       width: 100%;
       padding: 10px;
-      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
     }
     button {
-      background-color: #28a745;
+      background-color: #007bff;
       color: white;
-      padding: 12px 20px;
+      padding: 12px;
       border: none;
       width: 100%;
       font-size: 16px;
+      font-weight: bold;
       cursor: pointer;
       border-radius: 4px;
     }
-    button:disabled {
-      background-color: #cccccc;
-    }
-    #status {
-      margin-top: 15px;
-      font-weight: bold;
-    }
+    button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
     #preview {
       max-width: 100%;
+      max-height: 200px;
       margin-top: 10px;
       display: none;
-      border: 1px solid #ddd;
       border-radius: 4px;
+      border: 1px solid #ddd;
     }
+    #status { margin-top: 15px; text-align: center; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <h2>Ajouter un élément</h2>
+  <h2>Ajouter à la liste</h2>
   
   <form id="uploadForm">
     <div class="form-group">
-      <label for="nom">Nom / Titre :</label>
-      <input type="text" id="nom" name="nom" required>
+      <label for="nom">Nom / Article :</label>
+      <input type="text" id="nom" required>
     </div>
 
     <div class="form-group">
       <label for="prix">Prix :</label>
-      <input type="number" id="prix" name="prix">
+      <input type="number" id="prix" step="any">
     </div>
 
     <div class="form-group">
-      <label for="photo">Photo (Galerie ou Appareil Photo) :</label>
-      <!-- accept="image/*" active l'appareil photo ou la galerie sur mobile -->
+      <label for="photo">Photo (Galerie ou Appareil photo) :</label>
+      <!-- accept="image/*" permet de choisir soit l'appareil photo soit la galerie -->
       <input type="file" id="photo" accept="image/*" capture="environment" required>
-      <img id="preview" src="" alt="Aperçu de la photo">
+      <img id="preview" alt="Aperçu image">
     </div>
 
-    <button type="submit" id="btnSubmit">Envoyer vers Google Sheets</button>
+    <button type="submit" id="btnSubmit">Envoyer</button>
   </form>
 
   <div id="status"></div>
 
   <script>
-    // Remplacez cette URL par l'URL d'application web de votre Google Apps Script
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMlWNIkOfje1vH5cqfeOJAaUSN0gru535NyDPnw9TLXquXmHjOqtOpwZxe-kZF_KsC0A/exec";
+    // COLLEZ VOTRE URL DE DÉPLOIEMENT APPS SCRIPT ICI :
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtDSEjOxm2qfqL1VcptVdEzqs6JPIeEK3AHVrrkMHJCqI8n97Vy9C0iy6TgEJJZ1HwrQ/exec";
 
     const photoInput = document.getElementById('photo');
     const preview = document.getElementById('preview');
@@ -89,59 +86,87 @@
 
     let base64Image = "";
 
-    // Prévisualisation et conversion de l'image en Base64
+    // Compression et préparation de l'image
     photoInput.addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = function(event) {
-          base64Image = event.target.result;
-          preview.src = base64Image;
-          preview.style.display = 'block';
+          // Utilisation d'un Canvas pour redimensionner l'image si elle est trop grande (optimisation performance)
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxDimension = 1000; // Ajustement automatique de la résolution max
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height && width > maxDimension) {
+              height *= maxDimension / width;
+              width = maxDimension;
+            } else if (height > maxDimension) {
+              width *= maxDimension / height;
+              height = maxDimension;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            base64Image = canvas.toDataURL('image/jpeg', 0.8);
+            preview.src = base64Image;
+            preview.style.display = 'block';
+          };
+          img.src = event.target.result;
         };
         reader.readAsDataURL(file);
       }
     });
 
-    // Envoi des données au script
+    // Envoi des données vers Google Sheets
     form.addEventListener('submit', function(e) {
       e.preventDefault();
-      
+
       if (!base64Image) {
         alert("Veuillez sélectionner ou prendre une photo.");
         return;
       }
 
       btnSubmit.disabled = true;
-      statusDiv.style.color = "blue";
-      statusDiv.innerText = "Envoi en cours...";
+      statusDiv.style.color = "#007bff";
+      statusDiv.innerText = "Envoi en cours... Veuillez patienter.";
 
-      const payload = {
-        nom: document.getElementById('nom').value,
-        prix: document.getElementById('prix').value,
-        image: base64Image
-      };
+      // Utilisation du format URL-encoded pour une compatibilité parfaite avec Apps Script
+      const formData = new URLSearchParams();
+      formData.append('nom', document.getElementById('nom').value);
+      formData.append('prix', document.getElementById('prix').value);
+      formData.append('image', base64Image);
 
       fetch(SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors', // Nécessaire pour éviter les erreurs CORS avec Google Apps Script
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
         },
-        body: JSON.stringify(payload)
+        body: formData.toString()
       })
-      .then(() => {
-        statusDiv.style.color = "green";
-        statusDiv.innerText = "Succès ! Données et image enregistrées dans Google Sheets.";
-        form.reset();
-        preview.style.display = 'none';
-        base64Image = "";
-        btnSubmit.disabled = false;
+      .then(response => response.json())
+      .then(data => {
+        if (data.result === "success") {
+          statusDiv.style.color = "green";
+          statusDiv.innerText = "✔ Enregistré avec succès dans Google Sheets !";
+          form.reset();
+          preview.style.display = 'none';
+          base64Image = "";
+        } else {
+          throw new Error(data.error || "Erreur inconnue");
+        }
       })
       .catch(error => {
         console.error('Erreur:', error);
         statusDiv.style.color = "red";
-        statusDiv.innerText = "Une erreur s'est produite lors de l'envoi.";
+        statusDiv.innerText = "✖ Erreur lors de l'enregistrement : " + error.message;
+      })
+      .finally(() => {
         btnSubmit.disabled = false;
       });
     });
